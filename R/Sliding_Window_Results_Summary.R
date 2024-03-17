@@ -79,9 +79,6 @@ Sliding_Window_Results_Summary <- function(agds_dir,jobs_num,input_path,output_p
 		use_SPA <- FALSE
 	}
 
-	results_sliding_window_genome <- c()
-
-
 	results_sliding_window_genome = mclapply(1:nrow(all_window), function(kk) {
 	# results_sliding_window_genome = mclapply(1:50, function(kk) {
 		if (kk %% 500 == 0) print(kk)
@@ -117,31 +114,6 @@ Sliding_Window_Results_Summary <- function(agds_dir,jobs_num,input_path,output_p
 		return(pval_analysis_all)
 	}, mc.cores=ncores)
 
-
-	# for(chr in 1:22)
-	# {
-	# 	results_sliding_window_genome_chr <- c()
-
-	# 	if(chr>1)
-	# 	{
-	# 		jobs_num_chr <- sum(jobs_num$sliding_window_num[1:(chr-1)])
-	# 	}else
-	# 	{
-	# 		jobs_num_chr <- 0
-	# 	}
-
-	# 	for(i in 1:jobs_num$sliding_window_num[chr])
-	# 	{
-	# 		print(i + jobs_num_chr)
-	# 	  results_sliding_window <- get(load(paste0(input_path,sliding_window_results_name,"_",i+jobs_num_chr,".Rdata")))
-
-	# 		results_sliding_window_genome_chr <- rbind(results_sliding_window_genome_chr,results_sliding_window)
-	# 	}
-
-	# 	results_sliding_window_genome <- rbind(results_sliding_window_genome,results_sliding_window_genome_chr)
-	# }
-
-	# rm(results_sliding_window_genome_chr)
 	gc()
 
 	results_sliding_window_genome = do.call(rbind, results_sliding_window_genome)
@@ -150,12 +122,16 @@ Sliding_Window_Results_Summary <- function(agds_dir,jobs_num,input_path,output_p
 
 	save(results_sliding_window_genome,file=paste0(output_path,"results_sliding_window_genome.Rdata"))
 
-	dim(results_sliding_window_genome)
+	# results_sliding_window_genome = get(load(paste0(output_path,"results_sliding_window_genome.Rdata")))
+
+	cols = colnames(results_sliding_window_genome)
+	results_sliding_window_genome = do.call(cbind, lapply(cols, function(x) unlist(results_sliding_window_genome[,x])))
+	colnames(results_sliding_window_genome) = cols
 
 	### Significant Results
 	if(!use_SPA)
 	{
-		results_sig <- results_sliding_window_genome[results_sliding_window_genome[,colnames(results_sliding_window_genome)=="STAAR-O"]<alpha/dim(results_sliding_window_genome)[1],,drop=FALSE]
+		results_sig <- results_sliding_window_genome[as.numeric(results_sliding_window_genome[,colnames(results_sliding_window_genome)=="STAAR-O"])<alpha/dim(results_sliding_window_genome)[1],,drop=FALSE]
 	}else
 	{
 		results_sig <- results_sliding_window_genome[results_sliding_window_genome[,colnames(results_sliding_window_genome)=="STAAR-B"]<alpha/dim(results_sliding_window_genome)[1],,drop=FALSE]
