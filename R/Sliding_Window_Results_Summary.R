@@ -82,8 +82,8 @@ Sliding_Window_Results_Summary <- function(agds_dir,jobs_num,input_path,output_p
 	results_sliding_window_genome <- c()
 
 
-	# results_sliding_window_genome = mclapply(1:nrow(all_window), function(kk) {
-	results_sliding_window_genome = mclapply(1:50, function(kk) {
+	results_sliding_window_genome = mclapply(1:nrow(all_window), function(kk) {
+	# results_sliding_window_genome = mclapply(1:50, function(kk) {
 		row = all_window[kk,]
 		start_loc_sub = row[1,3]
 		end_loc_sub = row[1,4]
