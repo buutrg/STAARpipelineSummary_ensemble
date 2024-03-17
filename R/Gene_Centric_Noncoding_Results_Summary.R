@@ -120,68 +120,127 @@ Gene_Centric_Noncoding_Results_Summary <- function(agds_dir,gene_centric_noncodi
 
 	results_noncoding_genome <- c()
 
-	for(kk in 1:gene_centric_noncoding_jobs_num)
+	# for(kk in 1:gene_centric_noncoding_jobs_num)
+	# {
+	# 	print(kk)
+	# 	results_noncoding <- get(load(paste0(input_path,gene_centric_results_name,"_",kk,".Rdata")))
+
+	# 	results_noncoding_genome <- c(results_noncoding_genome,results_noncoding)
+	# }
+
+	results_noncoding_genome = mclapply(1:nrow(genes_info), function(kk) {
+	# results_noncoding_genome = mclapply(4545:4550, function(kk) {
+		row = genes_info[kk,]
+		filename = paste0(input_path,gene_centric_results_name,"_",row[,1],".Rdata")
+		if (!file.exists(filename)) {
+			return(NULL)
+		}	
+		results_coding <- get(load(filename))
+
+		pval_analysis_all = c()
+
+		for (i in 1:length(results_coding)) {
+			if (is.null(results_coding[[i]])) next
+			tmp = results_coding[[i]]
+			analysis = c("SKAT(1,25)","Burden(1,1)","ACAT-V(1,25)")
+			idx = lapply(analysis, function(x) which(startsWith(colnames(tmp), paste0(x, "_"))))
+
+			pval_analysis = unlist(lapply(idx, function(x) CCT(as.numeric(tmp[1,x]))))
+			# idx2 = lapply(analysis, function(x) which(startsWith(colnames(tmp), paste0(x))))
+			idx3 = lapply(1:100, function(i) which(endsWith(colnames(tmp), paste0("_", i))))
+
+
+			names(pval_analysis) = analysis
+			pval_analysis = as.list(pval_analysis)
+			pval_analysis = append(tmp[1,-unlist(idx3)], pval_analysis)
+			pval_analysis
+			pval_analysis_all = c(pval_analysis_all, list(pval_analysis))
+		}
+
+		return(pval_analysis_all)
+	}, mc.cores=ncores)
+
+
+
+
+	# for(kk in 1:length(results_noncoding_genome))
+	results_extract = mclapply(1:length(results_coding_genome), function(kk)
 	{
-		print(kk)
-		results_noncoding <- get(load(paste0(input_path,gene_centric_results_name,"_",kk,".Rdata")))
 
-		results_noncoding_genome <- c(results_noncoding_genome,results_noncoding)
-	}
+		results_UTR_genome <- c()
+		results_upstream_genome <- c()
+		results_downstream_genome <- c()
+		results_promoter_CAGE_genome <- c()
+		results_promoter_DHS_genome <- c()
+		results_enhancer_CAGE_genome <- c()
+		results_enhancer_DHS_genome <- c()
 
-	results_UTR_genome <- c()
-	results_upstream_genome <- c()
-	results_downstream_genome <- c()
-	results_promoter_CAGE_genome <- c()
-	results_promoter_DHS_genome <- c()
-	results_enhancer_CAGE_genome <- c()
-	results_enhancer_DHS_genome <- c()
+		results1 <- results_noncoding_genome[[kk]]
+		for (kk1 in 1:length(results1)) {
+			results <- results1[[kk1]]
 
-	for(kk in 1:length(results_noncoding_genome))
-	{
-		results <- results_noncoding_genome[[kk]]
-		if(is.null(results)==FALSE)
-		{
-			### UTR
-			if(results[3]=="UTR")
+			if(is.null(results)==FALSE)
 			{
-				results_UTR_genome <- rbind(results_UTR_genome,results)
+				### UTR
+				if(results[3]=="UTR")
+				{
+					results_UTR_genome <- rbind(results_UTR_genome,results)
+				}
+				### upstream
+				if(results[3]=="upstream")
+				{
+					results_upstream_genome <- rbind(results_upstream_genome,results)
+				}
+				### downstream
+				if(results[3]=="downstream")
+				{
+					results_downstream_genome <- rbind(results_downstream_genome,results)
+				}
+				### promoter_CAGE
+				if(results[3]=="promoter_CAGE")
+				{
+					results_promoter_CAGE_genome <- rbind(results_promoter_CAGE_genome,results)
+				}
+				### promoter_DHS
+				if(results[3]=="promoter_DHS")
+				{
+					results_promoter_DHS_genome <- rbind(results_promoter_DHS_genome,results)
+				}
+				### enhancer_CAGE
+				if(results[3]=="enhancer_CAGE")
+				{
+					results_enhancer_CAGE_genome <- rbind(results_enhancer_CAGE_genome,results)
+				}
+				### enhancer_DHS
+				if(results[3]=="enhancer_DHS")
+				{
+					results_enhancer_DHS_genome <- rbind(results_enhancer_DHS_genome,results)
+				}
 			}
-			### upstream
-			if(results[3]=="upstream")
+			if(kk%%1000==0)
 			{
-				results_upstream_genome <- rbind(results_upstream_genome,results)
-			}
-			### downstream
-			if(results[3]=="downstream")
-			{
-				results_downstream_genome <- rbind(results_downstream_genome,results)
-			}
-			### promoter_CAGE
-			if(results[3]=="promoter_CAGE")
-			{
-				results_promoter_CAGE_genome <- rbind(results_promoter_CAGE_genome,results)
-			}
-			### promoter_DHS
-			if(results[3]=="promoter_DHS")
-			{
-				results_promoter_DHS_genome <- rbind(results_promoter_DHS_genome,results)
-			}
-			### enhancer_CAGE
-			if(results[3]=="enhancer_CAGE")
-			{
-				results_enhancer_CAGE_genome <- rbind(results_enhancer_CAGE_genome,results)
-			}
-			### enhancer_DHS
-			if(results[3]=="enhancer_DHS")
-			{
-				results_enhancer_DHS_genome <- rbind(results_enhancer_DHS_genome,results)
+				print(kk)
 			}
 		}
-		if(kk%%1000==0)
-		{
-			print(kk)
-		}
-	}
+		return(list(
+			results_UTR_genome = results_UTR_genome,
+			results_upstream_genome = results_upstream_genome,
+			results_downstream_genome = results_downstream_genome,
+			results_promoter_CAGE_genome = results_promoter_CAGE_genome,
+			results_promoter_DHS_genome = results_promoter_DHS_genome,
+			results_enhancer_CAGE_genome = results_enhancer_CAGE_genome,
+			results_enhancer_DHS_genome = results_enhancer_DHS_genome
+
+		))
+	}, mc.cores=ncores)
+
+	results_UTR_genome = do.call(rbind, lapply(results_extract, function(x) x$results_UTR_genome))
+	results_upstream_genome = do.call(rbind, lapply(results_extract, function(x) x$results_upstream_genome))
+	results_downstream_genome = do.call(rbind, lapply(results_extract, function(x) x$results_downstream_genome))
+	results_promoter_CAGE_genome = do.call(rbind, lapply(results_extract, function(x) x$results_promoter_CAGE_genome))
+	results_promoter_DHS_genome = do.call(rbind, lapply(results_extract, function(x) x$results_promoter_DHS_genome))
+	results_enhancer_CAGE_genome = do.call(rbind, lapply(results_extract, function(x) x$results_enhancer_CAGE_genome))
+	results_enhancer_DHS_genome = do.call(rbind, lapply(results_extract, function(x) x$results_enhancer_DHS_genome))
 
 	###### cMAC_cutoff
 	# UTR
@@ -227,6 +286,41 @@ Gene_Centric_Noncoding_Results_Summary <- function(agds_dir,gene_centric_noncodi
 		results_ncRNA_genome <- rbind(results_ncRNA_genome,results_ncRNA)
 
 	}
+
+	results_ncRNA_genome = mclapply(1:nrow(ncRNA_gene), function(kk) {
+	# results_ncRNA_genome = mclapply(1:10, function(kk) {
+		row = ncRNA_gene[kk,]
+		filename = paste0(input_path,ncRNA_results_name,"_",row[,1],".Rdata")
+		if (!file.exists(filename)) {
+			return(NULL)
+		}	
+		results_coding <- list(get(load(filename)))
+
+		pval_analysis_all = c()
+
+		for (i in 1:length(results_coding)) {
+			if (is.null(results_coding[[i]])) next
+			tmp = results_coding[[i]]
+			analysis = c("SKAT(1,25)","Burden(1,1)","ACAT-V(1,25)")
+			idx = lapply(analysis, function(x) which(startsWith(colnames(tmp), paste0(x, "_"))))
+
+			pval_analysis = unlist(lapply(idx, function(x) CCT(as.numeric(tmp[1,x]))))
+			# idx2 = lapply(analysis, function(x) which(startsWith(colnames(tmp), paste0(x))))
+			idx3 = lapply(1:100, function(i) which(endsWith(colnames(tmp), paste0("_", i))))
+
+
+			names(pval_analysis) = analysis
+			pval_analysis = as.list(pval_analysis)
+			pval_analysis = append(tmp[1,-unlist(idx3)], pval_analysis)
+			pval_analysis
+			pval_analysis_all = c(pval_analysis_all, list(pval_analysis))
+		}
+
+		return(pval_analysis_all)
+	}, mc.cores=ncores)
+
+	results_ncRNA_genome = lapply(results_ncRNA_genome, function(x) x[[1]])
+	results_ncRNA_genome = do.call(rbind, results_ncRNA_genome)
 
 	###### cMAC_cutoff
 	results_ncRNA_genome <- results_ncRNA_genome[results_ncRNA_genome[,"cMAC"]>cMAC_cutoff,]

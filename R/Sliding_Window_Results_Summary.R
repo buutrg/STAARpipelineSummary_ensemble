@@ -63,7 +63,7 @@ Sliding_Window_Results_Summary <- function(agds_dir,jobs_num,input_path,output_p
                                            Use_annotation_weights=FALSE,Annotation_name=NULL,
                                            alpha=0.05,manhattan_plot=FALSE,QQ_plot=FALSE,
                                            cond_null_model_name=NULL,cond_null_model_dir=NULL,
-                                           SPA_p_filter=FALSE,p_filter_cutoff=0.05){
+                                           SPA_p_filter=FALSE,p_filter_cutoff=0.05, ncores=1){
 
 	## evaluate choices
 	method_cond <- match.arg(method_cond)
@@ -81,32 +81,69 @@ Sliding_Window_Results_Summary <- function(agds_dir,jobs_num,input_path,output_p
 
 	results_sliding_window_genome <- c()
 
-	for(chr in 1:22)
-	{
-		results_sliding_window_genome_chr <- c()
 
-		if(chr>1)
-		{
-			jobs_num_chr <- sum(jobs_num$sliding_window_num[1:(chr-1)])
-		}else
-		{
-			jobs_num_chr <- 0
+	# results_sliding_window_genome = mclapply(1:nrow(all_window), function(kk) {
+	results_sliding_window_genome = mclapply(1:50, function(kk) {
+		row = all_window[kk,]
+		start_loc_sub = row[1,3]
+		end_loc_sub = row[1,4]
+		filename = paste0(input_path,sliding_window_results_name,"_",start_loc_sub, "_", end_loc_sub,".Rdata")
+		if (!file.exists(filename)) {
+			return(NULL)
+		}	
+		results_coding <- get(load(filename))
+		if (any(!class(results_coding) %in% c("matrix", "array"))) return(NULL)
+		results_coding = do.call(cbind, as.data.frame(results_coding))
+
+		pval_analysis_all = NULL
+
+		for (i in 1:nrow(results_coding)) {
+			tmp = results_coding[i,]
+			analysis = c("SKAT(1,25)","Burden(1,1)","ACAT-V(1,25)")
+			idx = lapply(analysis, function(x) which(startsWith(names(tmp), paste0(x, "_"))))
+
+			pval_analysis = unlist(lapply(idx, function(x) CCT(as.numeric(tmp[x]))))
+			# idx2 = lapply(analysis, function(x) which(startsWith(names(tmp), paste0(x))))
+			idx3 = lapply(1:100, function(i) which(endsWith(names(tmp), paste0("_", i))))
+
+			names(pval_analysis) = analysis
+			pval_analysis = as.list(pval_analysis)
+			pval_analysis = append(tmp[-unlist(idx3)], pval_analysis)
+			pval_analysis
+			pval_analysis_all = rbind(pval_analysis_all, pval_analysis)
 		}
 
-		for(i in 1:jobs_num$sliding_window_num[chr])
-		{
-			print(i + jobs_num_chr)
-		  results_sliding_window <- get(load(paste0(input_path,sliding_window_results_name,"_",i+jobs_num_chr,".Rdata")))
+		return(pval_analysis_all)
+	}, mc.cores=ncores)
 
-			results_sliding_window_genome_chr <- rbind(results_sliding_window_genome_chr,results_sliding_window)
-		}
 
-		results_sliding_window_genome <- rbind(results_sliding_window_genome,results_sliding_window_genome_chr)
-	}
+	# for(chr in 1:22)
+	# {
+	# 	results_sliding_window_genome_chr <- c()
 
-	rm(results_sliding_window_genome_chr)
+	# 	if(chr>1)
+	# 	{
+	# 		jobs_num_chr <- sum(jobs_num$sliding_window_num[1:(chr-1)])
+	# 	}else
+	# 	{
+	# 		jobs_num_chr <- 0
+	# 	}
+
+	# 	for(i in 1:jobs_num$sliding_window_num[chr])
+	# 	{
+	# 		print(i + jobs_num_chr)
+	# 	  results_sliding_window <- get(load(paste0(input_path,sliding_window_results_name,"_",i+jobs_num_chr,".Rdata")))
+
+	# 		results_sliding_window_genome_chr <- rbind(results_sliding_window_genome_chr,results_sliding_window)
+	# 	}
+
+	# 	results_sliding_window_genome <- rbind(results_sliding_window_genome,results_sliding_window_genome_chr)
+	# }
+
+	# rm(results_sliding_window_genome_chr)
 	gc()
 
+	results_sliding_window_genome = do.call(rbind, results_sliding_window_genome)
 	###### cMAC_cutoff
 	results_sliding_window_genome <- results_sliding_window_genome[results_sliding_window_genome[,"cMAC"]>cMAC_cutoff,]
 

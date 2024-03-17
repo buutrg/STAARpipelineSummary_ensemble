@@ -84,7 +84,7 @@ Gene_Centric_Coding_Results_Summary <- function(agds_dir,gene_centric_coding_job
                                                 Use_annotation_weights=FALSE,Annotation_name=NULL,
                                                 alpha=2.5E-06,manhattan_plot=FALSE,QQ_plot=FALSE,
                                                 cond_null_model_name=NULL,cond_null_model_dir=NULL,
-                                                SPA_p_filter=FALSE,p_filter_cutoff=0.05){
+                                                SPA_p_filter=FALSE,p_filter_cutoff=0.05, genes_info=NULL, ncores=1){
 
 	## evaluate choices
 	method_cond <- match.arg(method_cond)
@@ -106,58 +106,122 @@ Gene_Centric_Coding_Results_Summary <- function(agds_dir,gene_centric_coding_job
 
 	results_coding_genome <- c()
 
-	for(kk in 1:gene_centric_coding_jobs_num)
+	# for(kk in 1:gene_centric_coding_jobs_num)
+	# {
+	# 	print(kk)
+	# 	results_coding <- get(load(paste0(input_path,gene_centric_results_name,"_",kk,".Rdata")))
+
+	# 	results_coding_genome <- c(results_coding_genome,results_coding)
+	# }
+
+	# for (kk in 1:nrow(genes_info)) {
+	results_coding_genome = mclapply(1:nrow(genes_info), function(kk) {
+	# results_coding_genome = mclapply(1:100, function(kk) {
+		row = genes_info[kk,]
+		filename = paste0(input_path,gene_centric_results_name,"_",row[,1],".Rdata")
+		if (!file.exists(filename)) {
+			return(NULL)
+		}	
+		results_coding <- get(load(filename))
+
+		pval_analysis_all = c()
+
+		for (i in 1:length(results_coding)) {
+			if (is.null(results_coding[[i]])) next
+			tmp = results_coding[[i]]
+			analysis = c("SKAT(1,25)","Burden(1,1)","ACAT-V(1,25)")
+			idx = lapply(analysis, function(x) which(startsWith(colnames(tmp), paste0(x, "_"))))
+
+			pval_analysis = unlist(lapply(idx, function(x) CCT(as.numeric(tmp[1,x]))))
+			# idx2 = lapply(analysis, function(x) which(startsWith(colnames(tmp), paste0(x))))
+			idx3 = lapply(1:100, function(i) which(endsWith(colnames(tmp), paste0("_", i))))
+
+
+			names(pval_analysis) = analysis
+			pval_analysis = as.list(pval_analysis)
+			pval_analysis = append(tmp[1,-unlist(idx3)], pval_analysis)
+			pval_analysis
+			pval_analysis_all = c(pval_analysis_all, list(pval_analysis))
+		}
+
+
+		return(pval_analysis_all)
+	}, mc.cores=ncores)
+
+
+
+	results_extract = mclapply(1:length(results_coding_genome), function(kk)
 	{
-		print(kk)
-		results_coding <- get(load(paste0(input_path,gene_centric_results_name,"_",kk,".Rdata")))
+		results_plof_genome <- c()
+		results_plof_ds_genome <- c()
+		results_missense_genome <- c()
+		results_disruptive_missense_genome <- c()
+		results_synonymous_genome <- c()
 
-		results_coding_genome <- c(results_coding_genome,results_coding)
-	}
+		results1 <- results_coding_genome[[kk]]
+		for (kk1 in 1:length(results1)) {
+			results = results1[[kk1]]
+			
+			# results$`Burden(1,1)` = as.numeric(results$`Burden(1,1)`)
+			# results$`SKAT(1,25)` = as.numeric(results$`SKAT(1,25)`)
+			# results$`ACAT-V(1,25)` = as.numeric(results$`ACAT-V(1,25)`)
+			# results$`STAAR-O` = as.numeric(results$`STAAR-O`)
+			# results$`STAAR-B` = as.numeric(results$`STAAR-B`)
+			# results$`STAAR-A(1,25)` = as.numeric(results$`STAAR-A(1,25)`)
+			# results$`STAAR-A(1,1)` = as.numeric(results$`STAAR-A(1,1)`)
+			# results$`STAAR-B(1,25)` = as.numeric(results$`STAAR-B(1,25)`)
+			# results$`STAAR-B(1,1)` = as.numeric(results$`STAAR-B(1,1)`)
+			# results$`ACAT-O` = as.numeric(results$`ACAT-O`)
+			# results$`cMAC` = as.numeric(results$`cMAC`)
+			# results$`#SNV` = as.numeric(results$`#SNV`)
+			# results$`Gene name` = as.character(results$`Gene name`)
+			# results$`Chr` = as.character(results$`Chr`)
+			# results$`Category` = as.character(results$`Category`)
 
-	results_plof_genome <- c()
-	results_plof_ds_genome <- c()
-	results_missense_genome <- c()
-	results_disruptive_missense_genome <- c()
-	results_synonymous_genome <- c()
 
-	for(kk in 1:length(results_coding_genome))
-	{
-		results <- results_coding_genome[[kk]]
+			if(is.null(results)==FALSE)
+			{
+				### plof
+				if(results[3]=="plof")
+				{
+					results_plof_genome <- rbind(results_plof_genome,results)
+				}
+				### plof_ds
+				if(results[3]=="plof_ds")
+				{
+					results_plof_ds_genome <- rbind(results_plof_ds_genome,results)
+				}
+				### missense
+				if(results[3]=="missense")
+				{
+					results_missense_genome <- rbind(results_missense_genome,results)
+				}
+				### disruptive_missense
+				if(results[3]=="disruptive_missense")
+				{
+					results_disruptive_missense_genome <- rbind(results_disruptive_missense_genome,results)
+				}
+				### synonymous
+				if(results[3]=="synonymous")
+				{
+					results_synonymous_genome <- rbind(results_synonymous_genome,results)
+				}
+			}
 
-		if(is.null(results)==FALSE)
-		{
-			### plof
-			if(results[3]=="plof")
+			if(kk%%1000==0)
 			{
-				results_plof_genome <- rbind(results_plof_genome,results)
-			}
-			### plof_ds
-			if(results[3]=="plof_ds")
-			{
-				results_plof_ds_genome <- rbind(results_plof_ds_genome,results)
-			}
-			### missense
-			if(results[3]=="missense")
-			{
-				results_missense_genome <- rbind(results_missense_genome,results)
-			}
-			### disruptive_missense
-			if(results[3]=="disruptive_missense")
-			{
-				results_disruptive_missense_genome <- rbind(results_disruptive_missense_genome,results)
-			}
-			### synonymous
-			if(results[3]=="synonymous")
-			{
-				results_synonymous_genome <- rbind(results_synonymous_genome,results)
+				print(kk)
 			}
 		}
 
-		if(kk%%1000==0)
-		{
-			print(kk)
-		}
-	}
+		return(list(
+			results_plof_genome=results_plof_genome,
+			results_plof_ds_genome=results_plof_ds_genome,
+			results_missense_genome=results_missense_genome,
+			results_disruptive_missense_genome=results_disruptive_missense_genome,
+			results_synonymous_genome=results_synonymous_genome
+		))
+	}, mc.cores=ncores)
 
 	###### cMAC_cutoff
 	# plof
