@@ -98,7 +98,7 @@ Gene_Centric_Noncoding_Results_Summary <- function(agds_dir,gene_centric_noncodi
                                                    alpha=2.5E-06,alpha_ncRNA=2.5E-06,
                                                    ncRNA_pos=NULL,manhattan_plot=FALSE,QQ_plot=FALSE,
                                                    cond_null_model_name=NULL,cond_null_model_dir=NULL,
-                                                   SPA_p_filter=FALSE,p_filter_cutoff=0.05){
+                                                   SPA_p_filter=FALSE,p_filter_cutoff=0.05, ncores=1){
 
 	## evaluate choices
 	method_cond <- match.arg(method_cond)
@@ -164,7 +164,7 @@ Gene_Centric_Noncoding_Results_Summary <- function(agds_dir,gene_centric_noncodi
 
 
 	# for(kk in 1:length(results_noncoding_genome))
-	results_extract = mclapply(1:length(results_coding_genome), function(kk)
+	results_extract = mclapply(1:length(results_noncoding_genome), function(kk)
 	{
 
 		results_UTR_genome <- c()
